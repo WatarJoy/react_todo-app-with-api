@@ -1,12 +1,13 @@
-import React from 'react';
+import { FC } from 'react';
 import classNames from 'classnames';
+import { ErrorMessages } from '../types/enums';
 
 interface ErrorNotificationProps {
-  error: string | null;
+  error: ErrorMessages;
   onHideError: () => void;
 }
 
-export const ErrorNotification: React.FC<ErrorNotificationProps> = ({
+export const ErrorNotification: FC<ErrorNotificationProps> = ({
   error,
   onHideError,
 }) => {

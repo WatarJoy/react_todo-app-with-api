@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getTodos,
   addTodo,
@@ -14,21 +14,33 @@ import { ErrorNotification } from './components/ErrorNotification';
 import { FilterStates, ErrorMessages } from './types/enums';
 import { TodoItem } from './components/TodoItem';
 
-export const App: React.FC = () => {
+export const App: FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorMessages>(ErrorMessages.DEFAULT);
   const [filter, setFilter] = useState(FilterStates.ALL);
   const [tempTodo, setTempTodo] = useState<Todo | null>(null);
   const [title, setTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isEditingId, setIsEditingId] = useState<number | null>(null);
 
-  const handleAddTodo = useCallback(async (): Promise<void> => {
-    if (title.trim() === '') {
-      setError(ErrorMessages.NAMING_TODOS);
-      setTimeout(() => setError(null), 3000);
+  const trimmedTitle = title.trim();
 
-      return;
+  const fetchTodos = async () => {
+    try {
+      const data = await getTodos();
+
+      setTodos(data);
+    } catch (err) {
+      setError(ErrorMessages.LOAD_TODOS);
+      const timer = setTimeout(() => setError(ErrorMessages.DEFAULT), 3000);
+
+      return () => clearTimeout(timer);
+    }
+  };
+
+  const handleAddTodo = useCallback(async (): Promise<void> => {
+    if (trimmedTitle === '') {
+      setError(ErrorMessages.NAMING_TODOS);
     }
 
     setIsAdding(true);
@@ -43,7 +55,7 @@ export const App: React.FC = () => {
 
       setTempTodo(newTempTodo);
 
-      const newTodo = await addTodo(title.trim());
+      const newTodo = await addTodo(trimmedTitle);
 
       setTodos(prevTodos => [...prevTodos, newTodo]);
       setTempTodo(null);
@@ -51,7 +63,6 @@ export const App: React.FC = () => {
     } catch {
       setError(ErrorMessages.ADDING_TODOS);
       setTempTodo(null);
-      setTimeout(() => setError(null), 3000);
     } finally {
       setIsAdding(false);
       setTimeout(() => {
@@ -70,7 +81,6 @@ export const App: React.FC = () => {
         setTodos(prevTodos => prevTodos.filter(todo => todo.id !== todoId));
       } catch {
         setError(ErrorMessages.DELETING_TODOS);
-        setTimeout(() => setError(null), 3000);
       } finally {
         const input =
           document.querySelector<HTMLInputElement>('.todoapp__new-todo');
@@ -92,7 +102,6 @@ export const App: React.FC = () => {
         );
       } catch {
         setError(ErrorMessages.UPDATE_TODOS);
-        setTimeout(() => setError(null), 3000);
       }
     },
     [],
@@ -101,25 +110,25 @@ export const App: React.FC = () => {
   const handleUpdateTodoTitle = useCallback(
     async (todoId: number, newTitle: string): Promise<void> => {
       const existingTodo = todos.find(todo => todo.id === todoId);
+      const newTitleTrimmed = newTitle.trim();
 
       if (!existingTodo) {
         return;
       }
 
-      if (newTitle.trim() === existingTodo.title) {
+      if (newTitleTrimmed === existingTodo.title) {
         setIsEditingId(null);
 
         return;
       }
 
-      if (newTitle.trim() === '') {
+      if (newTitleTrimmed === '') {
         try {
           await deleteTodo(todoId);
           setTodos(prevTodos => prevTodos.filter(todo => todo.id !== todoId));
           setIsEditingId(null);
         } catch {
           setError(ErrorMessages.DELETING_TODOS);
-          setTimeout(() => setError(null), 3000);
         }
 
         return;
@@ -135,7 +144,6 @@ export const App: React.FC = () => {
         setIsEditingId(null);
       } catch {
         setError(ErrorMessages.UPDATE_TODOS);
-        setTimeout(() => setError(null), 3000);
       }
     },
     [todos],
@@ -180,7 +188,9 @@ export const App: React.FC = () => {
       setTodos(updatedTodos);
     } catch {
       setError(ErrorMessages.UPDATE_TODOS);
-      setTimeout(() => setError(null), 3000);
+      const timer = setTimeout(() => setError(ErrorMessages.DEFAULT), 3000);
+
+      return () => clearTimeout(timer);
     }
   }, [todos, allCompleted]);
 
@@ -197,45 +207,30 @@ export const App: React.FC = () => {
       );
 
       if (hasErrors) {
-        setError('Unable to delete some completed todos');
-        setTimeout(() => {
-          setError(null);
-        }, 3000);
+        setError(ErrorMessages.DELETING_SOME_TODOS);
       }
     } catch {
-      setError('Unable to clear completed todos');
-      setTimeout(() => {
-        setError(null);
-      }, 3000);
+      setError(ErrorMessages.CLEAR_COMPLETED_TODOS);
     }
   }, [handleDeleteTodo, todos]);
 
   const handleHideError = () => {
-    setError(null);
-  };
-
-  const handleCancelEdit = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      setIsEditingId(null);
-    }
+    setError(ErrorMessages.DEFAULT);
   };
 
   useEffect(() => {
-    const fetchTodos = async () => {
-      try {
-        const data = await getTodos();
-
-        setTodos(data);
-      } catch (err) {
-        setError(ErrorMessages.LOAD_TODOS);
-        const timer = setTimeout(() => setError(null), 3000);
-
-        return () => clearTimeout(timer);
-      }
-    };
-
     fetchTodos();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => {
+        setError(ErrorMessages.DEFAULT);
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [error, ErrorMessages]);
 
   return (
     <div className="todoapp">
@@ -262,8 +257,9 @@ export const App: React.FC = () => {
               onUpdateTitle={handleUpdateTodoTitle}
               setError={setError}
               isEditing={isEditingId === todo.id}
+              setIsEditing={setIsEditingId}
               onDoubleClick={() => handleDoubleClick(todo.id)}
-              onCancelEdit={event => handleCancelEdit(event)}
+              error={error}
             />
           ))}
 
@@ -275,6 +271,7 @@ export const App: React.FC = () => {
             onUpdateTitle={handleUpdateTodoTitle}
             setError={setError}
             isAdding={isAdding}
+            error={error}
           />
         )}
 

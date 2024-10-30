@@ -1,4 +1,4 @@
-import React from 'react';
+import { FC } from 'react';
 import { FilterStates } from '../types/enums';
 import { Todo } from '../types/Todo';
 
@@ -9,22 +9,23 @@ interface FooterProps {
   onClearCompleted: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({
+export const Footer: FC<FooterProps> = ({
   todos,
   filter,
   setFilter,
   onClearCompleted,
 }) => {
   const activeTodos = todos.filter(todo => !todo.completed).length;
+  const filterValues = Object.values(FilterStates);
 
   return (
     <footer className="todoapp__footer" data-cy="Footer">
       <span className="todo-count" data-cy="TodosCounter">
-        {`${activeTodos} items left`}
+        {activeTodos} items left
       </span>
 
       <nav className="filter" data-cy="Filter">
-        {Object.values(FilterStates).map(state => (
+        {filterValues.map(state => (
           <a
             key={state}
             href={`#/${state}`}

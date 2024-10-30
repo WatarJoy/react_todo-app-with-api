@@ -1,22 +1,24 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
-import React, { useRef, useState } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import { ErrorMessages } from '../types/enums';
 import classNames from 'classnames';
 import { Todo } from '../types/Todo';
+import cn from 'classnames';
 
 interface TodoItemProps {
   todo: Todo;
   onDelete: (id: number) => Promise<void>;
   onToggleStatus: (id: number, completed: boolean) => Promise<void>;
   onUpdateTitle: (id: number, title: string) => Promise<void>;
-  setError: (message: string | null) => void;
+  setError: (message: ErrorMessages) => void;
   isAdding?: boolean;
   isEditing?: boolean;
+  setIsEditing?: (isEditing: number | null) => void;
   onDoubleClick?: () => void;
-  onCancelEdit?: (event: React.KeyboardEvent) => void;
+  error: ErrorMessages;
 }
 
-export const TodoItem: React.FC<TodoItemProps> = ({
+export const TodoItem: FC<TodoItemProps> = ({
   todo,
   onDelete,
   onToggleStatus,
@@ -25,7 +27,8 @@ export const TodoItem: React.FC<TodoItemProps> = ({
   isAdding,
   isEditing,
   onDoubleClick,
-  onCancelEdit,
+  error,
+  setIsEditing,
 }) => {
   const [newTitle, setNewTitle] = useState(todo.title);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -39,7 +42,6 @@ export const TodoItem: React.FC<TodoItemProps> = ({
       await onDelete(todo.id);
     } catch {
       setError(ErrorMessages.DELETING_TODOS);
-      setTimeout(() => setError(null), 3000);
     } finally {
       setIsDeletingItem(false);
     }
@@ -51,7 +53,6 @@ export const TodoItem: React.FC<TodoItemProps> = ({
       await onToggleStatus(todo.id, !todo.completed);
     } catch {
       setError(ErrorMessages.UPDATE_TODOS);
-      setTimeout(() => setError(null), 3000);
     } finally {
       setIsUpdating(false);
     }
@@ -65,9 +66,17 @@ export const TodoItem: React.FC<TodoItemProps> = ({
       await onUpdateTitle(todo.id, newTitle.trim());
     } catch {
       setError(ErrorMessages.UPDATE_TODOS);
-      setTimeout(() => setError(null), 3000);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleCancelEdit = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      handleEditSubmit(event);
+      if (setIsEditing) {
+        setIsEditing(null);
+      }
     }
   };
 
@@ -75,8 +84,18 @@ export const TodoItem: React.FC<TodoItemProps> = ({
     handleEditSubmit(event);
   };
 
+  useEffect(() => {
+    if (error) {
+      const timeout = setTimeout(() => {
+        setError(ErrorMessages.DEFAULT);
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [error, ErrorMessages]);
+
   return (
-    <div data-cy="Todo" className={`todo ${todo.completed ? 'completed' : ''}`}>
+    <div data-cy="Todo" className={cn('todo', { completed: todo.completed })}>
       <label className="todo__status-label">
         <input
           data-cy="TodoStatus"
@@ -96,7 +115,7 @@ export const TodoItem: React.FC<TodoItemProps> = ({
             value={newTitle}
             className="todo__title-field"
             onChange={e => setNewTitle(e.target.value)}
-            onKeyDown={onCancelEdit}
+            onKeyDown={handleCancelEdit}
             onBlur={handleBlur}
             disabled={isUpdating}
             autoFocus

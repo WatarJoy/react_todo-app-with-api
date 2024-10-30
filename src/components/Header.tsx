@@ -1,4 +1,4 @@
-import React from 'react';
+import { FC } from 'react';
 import classNames from 'classnames';
 import { ErrorMessages } from '../types/enums';
 
@@ -10,10 +10,10 @@ interface HeaderProps {
   setTitle: (value: string) => void;
   todoCount: number;
   isAdding: boolean;
-  setError: (message: string | null) => void;
+  setError: (message: ErrorMessages) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+export const Header: FC<HeaderProps> = ({
   allCompleted,
   onAddTodo,
   onToggleAllTodos,
@@ -29,7 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
       await onAddTodo(title.trim());
     } catch (error) {
       setError(ErrorMessages.ADDING_TODOS);
-      setTimeout(() => setError(null), 3000);
+      const timer = setTimeout(() => setError(ErrorMessages.DEFAULT), 3000);
+
+      return () => clearTimeout(timer);
     }
   };
 
